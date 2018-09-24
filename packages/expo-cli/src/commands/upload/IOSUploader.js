@@ -2,35 +2,26 @@ import prompt from '../../prompt';
 import log from '../../log';
 
 import BaseUploader from './BaseUploader';
-import { printError, spawnAndCollectJSONOutputAsync } from './utils';
+import { printFastlaneError, spawnAndCollectJSONOutputAsync } from './utils';
 
 export default class IOSUploader extends BaseUploader {
-  getPlatformName = () => {
-    return 'iOS';
-  };
+  constructor(projectDir, options) {
+    super(projectDir, options);
+    this.platform = 'ios';
+    this.platformName = 'iOS';
+    this.platformExtension = 'ipa';
+  }
 
-  getPlatformExtension = () => {
-    return 'ipa';
-  };
+  ensurePlatformOptionsAreCorrect() {}
 
-  getPlatform = () => {
-    return 'ios';
-  };
-
-  ensurePlatformOptionsAreCorrect = () => {};
-
-  ensureConfigDataIsCorrect = configData => {
-    const { configName } = configData.debug;
+  ensureConfigDataIsCorrect(configData) {
     const { ios } = configData;
     if (!ios || !ios.bundleIdentifier) {
-      throw new Error(
-        `Must specify a bundle identifier in order to upload ipa file.` +
-          `Please specify one in ${this.projectDir}/${configName}`
-      );
+      throw new Error(`Must specify a bundle identifier in order to upload ipa file.`);
     }
-  };
+  }
 
-  getPlatformData = () => {
+  getPlatformData() {
     if (!this.options.appleId) {
       log('You can specify your Apple ID using --apple-id option');
       return prompt({
@@ -40,9 +31,9 @@ export default class IOSUploader extends BaseUploader {
       });
     }
     return { appleId: this.options.appleId };
-  };
+  }
 
-  uploadToStore = async ({ name: appName, ios: { bundleIdentifier } }, { appleId }, path) => {
+  async uploadToStore({ name: appName, ios: { bundleIdentifier } }, { appleId }, path) {
     const fastlane = this.getFastlane();
     const login = await spawnAndCollectJSONOutputAsync(fastlane.app_produce, [
       bundleIdentifier,
@@ -50,12 +41,12 @@ export default class IOSUploader extends BaseUploader {
       appleId,
     ]);
     if (login.result !== 'success') {
-      printError(login, 'login');
+      printFastlaneError(login, 'login');
       return;
     }
     const upload = await spawnAndCollectJSONOutputAsync(fastlane.app_deliver, [path, appleId]);
     if (upload.result !== 'success') {
-      printError(upload, 'upload');
+      printFastlaneError(upload, 'upload');
     }
-  };
+  }
 }

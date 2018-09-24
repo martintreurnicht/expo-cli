@@ -30,6 +30,9 @@ module.exports = {
   get Binaries() {
     return require('./Binaries');
   },
+  get Webhooks() {
+    return require('./Webhooks');
+  },
   get Config() {
     return require('./Config').default;
   },
@@ -68,6 +71,9 @@ module.exports = {
   },
   get FsCache() {
     return require('./tools/FsCache');
+  },
+  get ImageUtils() {
+    return require('./tools/ImageUtils');
   },
   get BuildInformation() {
     return require('./BuildInformation');
@@ -125,6 +131,9 @@ module.exports = {
   },
   get Simulator() {
     return require('./Simulator');
+  },
+  get ThirdParty() {
+    return require('./ThirdParty');
   },
   get UpdateVersions() {
     return require('./tools/UpdateVersions');

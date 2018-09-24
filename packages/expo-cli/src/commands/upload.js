@@ -1,5 +1,15 @@
+import process from 'process';
+
 import IOSUploader from './upload/IOSUploader';
 import AndroidUploader from './upload/AndroidUploader';
+import log from '../log';
+
+function ensurePlatformIsCorrect() {
+  if (process.platform !== 'darwin') {
+    log.error('Unsupported platform! Upload command can be used only on macOS');
+    process.exit(1);
+  }
+}
 
 export default (program: any) => {
   program
@@ -8,8 +18,9 @@ export default (program: any) => {
     .option('--latest', 'Upload latest build')
     .option('--path <path>', 'Upload local build')
     .option('--key <key>', 'JSON key used to authenticate with Google Play Store')
-    .description('Upload standalone android app to Google Play Store')
+    .description('Upload standalone android app to Google Play Store. It works only on macOS')
     .asyncActionProjectDir(async (projectDir, command) => {
+      ensurePlatformIsCorrect();
       const uploader = new AndroidUploader(projectDir, command);
       await uploader.upload();
     });
@@ -22,6 +33,7 @@ export default (program: any) => {
     .option('--apple-id <apple-id>', 'Your Apple ID')
     .description('Uploads standalone app to App Store. It works only on macOS')
     .asyncActionProjectDir(async (projectDir, command) => {
+      ensurePlatformIsCorrect();
       const uploader = new IOSUploader(projectDir, command);
       await uploader.upload();
     });

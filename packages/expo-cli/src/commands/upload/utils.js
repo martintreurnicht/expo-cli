@@ -1,13 +1,6 @@
-import _ from 'lodash';
 import child_process from 'child_process';
-import log from '../../log';
 
-export function ensureArgumentsAreDefined(values) {
-  const nilKeys = _.keys(values).filter(key => _.isNil(values[key]));
-  if (nilKeys.length) {
-    throw new Error(`Not all required arguments were defined. ${nilKeys} needs to be defined`);
-  }
-}
+import log from '../../log';
 
 export async function spawnAndCollectJSONOutputAsync(program, args) {
   return new Promise((resolve, reject) => {
@@ -23,11 +16,11 @@ export async function spawnAndCollectJSONOutputAsync(program, args) {
   });
 }
 
-export function printError(result, type) {
+export function printFastlaneError(result) {
   if (result.rawDump.message) {
-    log.warn(result.rawDump.message);
+    log.error(result.rawDump.message);
   } else {
-    log.warn('Returned json: ');
-    console.dir(result.rawDump);
+    log.error('Returned json: ');
+    log.error(result.rawDump);
   }
 }

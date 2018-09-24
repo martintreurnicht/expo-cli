@@ -1,4 +1,5 @@
 import fs from 'fs';
+import process from 'process';
 
 import ProgressBar from 'progress';
 import Axios from 'axios';
@@ -17,101 +18,89 @@ export default class BaseUploader {
     this.options = options;
   }
 
-  getPlatformName = () => {
+  ensurePlatformOptionsAreCorrect() {
     throw new Error('Not implemented');
-  };
+  }
 
-  getPlatformExtension = () => {
-    throw new Error('NotImplemented');
-  };
-
-  getPlatform = () => {
+  ensureConfigDataIsCorrect(configData) {
     throw new Error('Not implemented');
-  };
+  }
 
-  ensureFileIsCorrect = file => {
-    const regexp = new RegExp(`^.*\.${this.getPlatformExtension()}$`);
-    if (!regexp.test(file)) {
-      throw new Error(`File ${file} isn't ${this.getPlatformExtension()} file`);
-    }
-  };
-
-  ensurePlatformOptionsAreCorrect = () => {
+  getPlatformData() {
     throw new Error('Not implemented');
-  };
+  }
 
-  ensureConfigDataIsCorrect = configData => {
+  uploadToStore(data, configData, platformData, path) {
     throw new Error('Not implemented');
-  };
+  }
 
-  getPlatformData = () => {
-    throw new Error('Not implemented');
-  };
-
-  uploadToStore = (data, configData, platformData, path) => {
-    throw new Error('not implemented');
-  };
-
-  pathGetter = () => {
+  pathGetter() {
     return {
       path: this.options.path,
-      platform: this.getPlatform(),
+      platform: this.platform,
     };
-  };
+  }
 
-  idGetter = async () => {
+  ensureFileIsCorrect(file) {
+    const regexp = new RegExp(`^.*.${this.platformExtension}$`);
+    if (!regexp.test(file)) {
+      throw new Error(`File ${file} isn't ${this.platformExtension} file`);
+    }
+  }
+
+  async idGetter() {
     const { id } = this.options;
-    const platform = this.getPlatform();
+    const platform = this.platform;
     const [build] = await BuildInformation.getBuildInformation({ id, platform }, this.projectDir);
     if (!build) {
-      throw new Error(`There is no compiled build with id: ${id}`);
+      throw new Error(`There isn't any build with id: ${id}`);
     }
     return {
       id,
       platform: build.platform,
       remoteUrl: build.artifacts.url,
     };
-  };
+  }
 
-  latestGetter = async () => {
-    const platform = this.getPlatform();
+  async latestGetter() {
+    const platform = this.platform;
     const [build] = await BuildInformation.getBuildInformation(
       { limit: 1, platform },
       this.projectDir
     );
     if (!build) {
-      throw new Error(`There is no compiled builds for ${platform}`);
+      throw new Error(`There are no builds for ${platform}`);
     }
     return {
       id: build.id,
       platform,
       remoteUrl: build.artifacts.url,
     };
-  };
+  }
 
-  chooseBuild = async () => {
-    const listElement = build => {
-      const platformPart = build.platform === 'ios' ? 'iOS' : 'Android';
-      const message = `### ${platformPart} | ${UrlUtils.constructBuildLogsUrl(build.id)} ###`;
-
-      return {
-        name: message,
-        value: build,
-      };
-    };
-    const platform = this.getPlatform();
+  async chooseBuild() {
+    const platform = this.platform;
     const builds = await BuildInformation.getBuildInformation(
       { platform, limit: 10 },
       this.projectDir
     );
     if (!builds.length) {
-      throw new Error(`There is no compiled builds for ${this.getPlatformName()}`);
+      log.warn(`There are no builds for ${this.platformName}`);
+      process.exit(0);
     }
     const { build } = await prompt({
       name: 'build',
       message: 'Choose build to upload',
       type: 'list',
-      choices: builds.map(listElement),
+      choices: builds.map(build => {
+        const platformPart = build.platform === 'ios' ? 'iOS' : 'Android';
+        const message = `### ${platformPart} | ${UrlUtils.constructBuildLogsUrl(build.id)} ###`;
+
+        return {
+          name: message,
+          value: build,
+        };
+      }),
     });
 
     return {
@@ -119,9 +108,9 @@ export default class BaseUploader {
       platform: build.platform,
       remoteUrl: build.artifacts.url,
     };
-  };
+  }
 
-  nothingGetter = async () => {
+  async askUser() {
     const SOURCES_LIST = [
       {
         name: 'Latest build',
@@ -139,64 +128,40 @@ export default class BaseUploader {
       choices: SOURCES_LIST,
     });
 
-    if (source === 'latest') return this.latestGetter();
-    else return this.chooseBuild();
-  };
+    if (source === 'latest') {
+      return this.latestGetter();
+    } else {
+      return this.chooseBuild();
+    }
+  }
 
-  getSource = () => {
+  async getData() {
     const options = this.options;
-    let getter;
-    if (options.path) getter = this.pathGetter;
-    else if (options.latest) getter = this.latestGetter;
-    else if (options.id) getter = this.idGetter;
-    else getter = this.nothingGetter;
+    if (options.path) {
+      return this.pathGetter();
+    } else if (options.latest) {
+      return this.latestGetter();
+    } else if (options.id) {
+      return this.idGetter();
+    } else {
+      return this.askUser();
+    }
+  }
 
-    return {
-      getData: getter,
-    };
-  };
-
-  getConfigData = async () => {
+  async getConfigData() {
     const { exp } = await ProjectUtils.readConfigJsonAsync(this.projectDir);
     const configName = await ProjectUtils.configFilenameAsync(this.projectDir);
     if (!exp) {
-      throw new Error(`Couldn't read ${configName} file in project at ${this.projectDir}`);
+      throw new Error(`Couldn't read ${configName} file in project at ${this.projectDir}.`);
     }
+    this.ensureConfigDataIsCorrect(exp);
+    return exp;
+  }
 
-    return {
-      name: exp.name,
-      android: exp.android,
-      ios: exp.ios,
-      version: exp.version,
-      debug: { configName },
-    };
-  };
-
-  copyFile = async file => {
-    if (!fs.existsSync(file)) {
-      throw new Error(`File ${file} doesn't exist`);
-    }
-    const suffix = this.getPlatform() === 'ios' ? 'ipa' : 'apk';
-    const dest = `./build.${suffix}`;
-    await fs.copyFileSync(file, dest);
-    return dest;
-  };
-
-  downloadFileFrom = async remoteUrl => {
-    if (!/^http/.test(remoteUrl)) {
-      return this.copyFile(remoteUrl);
-    }
-    const dest = _.last(remoteUrl.split('/'));
-    if (fs.existsSync(dest)) {
-      log.warn(
-        `File ${dest} exists. If it's not ${this.getPlatformExtension()} you want to upload change its name`
-      );
-      return dest;
-    }
-    log(`Downloading build from ${remoteUrl}`);
+  async _downloadFile(src, dest) {
     const response = await Axios({
       method: 'GET',
-      url: remoteUrl,
+      url: src,
       responseType: 'stream',
     });
     const totalLength = parseInt(response.headers['content-length'], 10);
@@ -211,24 +176,33 @@ export default class BaseUploader {
       response.data.on('data', data => bar.tick(data.length));
       response.data.on('error', error => reject(new Error(`${error}`)));
     });
-  };
+  }
 
-  upload = async () => {
+  async downloadFile(remoteUrl) {
+    const dest = _.last(remoteUrl.split('/'));
+    if (fs.existsSync(dest)) {
+      log.warn(
+        `File ${dest} exists. If it's not ${this
+          .platformExtension} you want to upload, please change its name.`
+      );
+      return dest;
+    }
+    log(`Downloading build from ${remoteUrl}`);
+    return this._downloadFile(remoteUrl, dest);
+  }
+
+  async upload() {
     this.ensureOptionsAreCorrect();
-    const source = this.getSource();
-    const data = await source.getData();
-    const { remoteUrl } = data;
+    const data = await this.getData();
     const configData = await this.getConfigData();
-    this.ensureConfigDataIsCorrect(configData);
-    const path = data.path ? data.path : await this.downloadFileFrom(remoteUrl);
+    const path = data.path ? data.path : await this.downloadFile(data.remoteUrl);
     const platformData = await this.getPlatformData();
     await this.uploadToStore(configData, platformData, path);
-  };
+  }
 
-  ensureOptionsAreCorrect = () => {
+  ensureOptionsAreCorrect() {
     const options = this.options;
-    let definedKeys = _.pick(options, OPTIONS);
-    definedKeys = _.keys(definedKeys).filter(key => !_.isNil(options[key]));
+    const definedKeys = Object.keys(_.pick(options, OPTIONS)).filter(key => !_.isNil(options[key]));
     if (definedKeys.length > 1) {
       throw new Error(`You have to choose only one of --path, --id, --latest`);
     }
@@ -239,11 +213,9 @@ export default class BaseUploader {
       this.ensureFileIsCorrect(options.path);
     }
     this.ensurePlatformOptionsAreCorrect();
-  };
+  }
 
-  getFastlane = () => {
-    return process.platform === 'darwin'
-      ? require('@expo/traveling-fastlane-darwin')()
-      : require('@expo/traveling-fastlane-linux')();
-  };
+  getFastlane() {
+    return require('@expo/traveling-fastlane-darwin')();
+  }
 }

@@ -1,3 +1,5 @@
+import fs from 'fs';
+
 import prompt from '../../prompt';
 import log from '../../log';
 
@@ -5,32 +7,28 @@ import BaseUploader from './BaseUploader';
 import { printError, spawnAndCollectJSONOutputAsync } from './utils';
 
 export default class AndroidUploader extends BaseUploader {
-  getPlatformName = () => {
-    return 'Android';
-  };
+  constructor(projectDir, options) {
+    super(projectDir, options);
+    this.platform = 'android';
+    this.platformName = 'Android';
+    this.platformExtension = 'apk';
+  }
 
-  getPlatformExtension = () => {
-    return 'apk';
-  };
+  ensurePlatformOptionsAreCorrect() {
+    const { key } = this.options;
+    if (key && !fs.existsSync(key)) {
+      throw new Error(`No such file: ${key}`);
+    }
+  }
 
-  getPlatform = () => {
-    return 'android';
-  };
-
-  ensurePlatformOptionsAreCorrect = () => {};
-
-  ensureConfigDataIsCorrect = configData => {
-    const { configName } = configData.debug;
+  ensureConfigDataIsCorrect(configData) {
     const { android } = configData;
     if (!android || !android.package) {
-      throw new Error(
-        `Must specify a package in order to upload apk file.` +
-          `Please specify one in ${this.projectDir}/${configName}`
-      );
+      throw new Error(`Must specify a package in order to upload apk file.`);
     }
-  };
+  }
 
-  getPlatformData = () => {
+  getPlatformData() {
     if (!this.options.key) {
       log('You can specify json file ID using --key option');
       return prompt({
@@ -40,9 +38,9 @@ export default class AndroidUploader extends BaseUploader {
       });
     }
     return { key: this.options.key };
-  };
+  }
 
-  uploadToStore = async ({ android: { package: androidPackage } }, { key }, path) => {
+  async uploadToStore({ android: { package: androidPackage } }, { key }, path) {
     const fastlane = this.getFastlane();
     const supply = await spawnAndCollectJSONOutputAsync(fastlane.app_supply, [
       androidPackage,
@@ -52,5 +50,5 @@ export default class AndroidUploader extends BaseUploader {
     if (supply.result !== 'success') {
       printError(supply, 'supply');
     }
-  };
+  }
 }
