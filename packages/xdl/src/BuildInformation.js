@@ -13,7 +13,7 @@ export async function getBuildInformation(options, projectDir) {
       id,
       platform: platform == null ? 'all' : platform,
       limit,
-      status: status == null ? 'finished' : platform,
+      status: status == null ? 'finished' : status,
     },
   };
   try {
