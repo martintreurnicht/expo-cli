@@ -8,10 +8,7 @@ import { printError, spawnAndCollectJSONOutputAsync } from './utils';
 
 export default class AndroidUploader extends BaseUploader {
   constructor(projectDir, options) {
-    super(projectDir, options);
-    this.platform = 'android';
-    this.platformName = 'Android';
-    this.platformExtension = 'apk';
+    super(projectDir, options, 'android', 'Android', 'apk');
   }
 
   ensurePlatformOptionsAreCorrect() {

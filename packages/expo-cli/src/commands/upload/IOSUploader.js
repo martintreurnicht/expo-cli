@@ -6,10 +6,7 @@ import { printFastlaneError, spawnAndCollectJSONOutputAsync } from './utils';
 
 export default class IOSUploader extends BaseUploader {
   constructor(projectDir, options) {
-    super(projectDir, options);
-    this.platform = 'ios';
-    this.platformName = 'iOS';
-    this.platformExtension = 'ipa';
+    super(projectDir, options, 'ios', 'iOS', 'ipa');
   }
 
   ensurePlatformOptionsAreCorrect() {}

@@ -13,9 +13,12 @@ import log from '../../log';
 const OPTIONS = ['path', 'latest', 'id'];
 
 export default class BaseUploader {
-  constructor(projectDir, options) {
+  constructor(projectDir, options, platform, platformName, platformExtension) {
     this.projectDir = projectDir;
     this.options = options;
+    this.platform = platform;
+    this.platformName = platformName;
+    this.platformExtension = platformExtension;
   }
 
   ensurePlatformOptionsAreCorrect() {
