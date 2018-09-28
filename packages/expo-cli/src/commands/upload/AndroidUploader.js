@@ -1,14 +1,20 @@
 import fs from 'fs';
-
 import prompt from '../../prompt';
 import log from '../../log';
 
 import BaseUploader from './BaseUploader';
-import { printError, spawnAndCollectJSONOutputAsync } from './utils';
+import { printFastlaneError, spawnAndCollectJSONOutputAsync } from './utils';
 
 export default class AndroidUploader extends BaseUploader {
   constructor(projectDir, options) {
-    super(projectDir, options, 'android', 'Android', 'apk');
+    const args = {
+      projectDir,
+      options,
+      platform: 'android',
+      platformName: 'Android',
+      platformExtension: 'apk',
+    };
+    super(args);
   }
 
   ensurePlatformOptionsAreCorrect() {
@@ -21,31 +27,35 @@ export default class AndroidUploader extends BaseUploader {
   ensureConfigDataIsCorrect(configData) {
     const { android } = configData;
     if (!android || !android.package) {
-      throw new Error(`Must specify a package in order to upload apk file.`);
+      throw new Error(`You must specify a package in order to upload apk file.`);
     }
   }
 
-  getPlatformData() {
+  async getPlatformData() {
     if (!this.options.key) {
       log('You can specify json file ID using --key option');
-      return prompt({
+      const { key } = await prompt({
         name: 'key',
-        message: 'The service account json file used to authenticate with Google Play Store:  ',
+        message: 'The service account json file used to authenticate with Google Play Store:',
         type: 'input',
       });
+      if (!fs.existsSync(key)) {
+        throw new Error(`No such file: ${key}`);
+      }
+      return { key };
     }
     return { key: this.options.key };
   }
 
   async uploadToStore({ android: { package: androidPackage } }, { key }, path) {
-    const fastlane = this.getFastlane();
+    const fastlane = this.fastlane;
     const supply = await spawnAndCollectJSONOutputAsync(fastlane.app_supply, [
       androidPackage,
       path,
       key,
     ]);
     if (supply.result !== 'success') {
-      printError(supply, 'supply');
+      printFastlaneError(supply, 'supply');
     }
   }
 }

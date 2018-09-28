@@ -1,12 +1,10 @@
-import process from 'process';
-
 import IOSUploader from './upload/IOSUploader';
 import AndroidUploader from './upload/AndroidUploader';
 import log from '../log';
 
 function ensurePlatformIsCorrect() {
   if (process.platform !== 'darwin') {
-    log.error('Unsupported platform! Upload command can be used only on macOS');
+    log.error('Unsupported platform! this feature works on macOS only');
     process.exit(1);
   }
 }

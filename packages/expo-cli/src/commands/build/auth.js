@@ -311,7 +311,7 @@ export async function revokeCredentialsOnApple(creds, metadata, ids, teamId) {
   return spawnAndCollectJSONOutputAsync(FASTLANE.app_management, args);
 }
 
-export async function spawnAndCollectJSONOutputAsync(program, args) {
+async function spawnAndCollectJSONOutputAsync(program, args) {
   let prgm = program;
   let cmd = args;
   let timeout;

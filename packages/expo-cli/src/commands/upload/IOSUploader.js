@@ -6,10 +6,15 @@ import { printFastlaneError, spawnAndCollectJSONOutputAsync } from './utils';
 
 export default class IOSUploader extends BaseUploader {
   constructor(projectDir, options) {
-    super(projectDir, options, 'ios', 'iOS', 'ipa');
+    const args = {
+      projectDir,
+      options,
+      platform: 'ios',
+      platformName: 'iOS',
+      platformExtension: 'ipa',
+    };
+    super(args);
   }
-
-  ensurePlatformOptionsAreCorrect() {}
 
   ensureConfigDataIsCorrect(configData) {
     const { ios } = configData;
@@ -18,7 +23,7 @@ export default class IOSUploader extends BaseUploader {
     }
   }
 
-  getPlatformData() {
+  async getPlatformData() {
     if (!this.options.appleId) {
       log('You can specify your Apple ID using --apple-id option');
       return prompt({
@@ -31,7 +36,7 @@ export default class IOSUploader extends BaseUploader {
   }
 
   async uploadToStore({ name: appName, ios: { bundleIdentifier } }, { appleId }, path) {
-    const fastlane = this.getFastlane();
+    const fastlane = this.fastlane;
     const login = await spawnAndCollectJSONOutputAsync(fastlane.app_produce, [
       bundleIdentifier,
       appName,

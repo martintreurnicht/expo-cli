@@ -1,10 +1,8 @@
 import fs from 'fs';
-import process from 'process';
 
 import ProgressBar from 'progress';
 import Axios from 'axios';
 import _ from 'lodash';
-
 import { BuildInformation, ProjectUtils } from 'xdl';
 import * as UrlUtils from '../utils/url';
 import prompt from '../../prompt';
@@ -13,17 +11,16 @@ import log from '../../log';
 const OPTIONS = ['path', 'latest', 'id'];
 
 export default class BaseUploader {
-  constructor(projectDir, options, platform, platformName, platformExtension) {
+  constructor({ projectDir, options, platform, platformName, platformExtension }) {
     this.projectDir = projectDir;
     this.options = options;
     this.platform = platform;
     this.platformName = platformName;
     this.platformExtension = platformExtension;
+    this.fastlane = require('@expo/traveling-fastlane-darwin')();
   }
 
-  ensurePlatformOptionsAreCorrect() {
-    throw new Error('Not implemented');
-  }
+  ensurePlatformOptionsAreCorrect() {}
 
   ensureConfigDataIsCorrect(configData) {
     throw new Error('Not implemented');
@@ -161,7 +158,7 @@ export default class BaseUploader {
     return exp;
   }
 
-  async _downloadFile(src, dest) {
+  async downloadFile(src, dest) {
     const response = await Axios({
       method: 'GET',
       url: src,
@@ -181,7 +178,7 @@ export default class BaseUploader {
     });
   }
 
-  async downloadFile(remoteUrl) {
+  async checkAndDownloadFile(remoteUrl) {
     const dest = _.last(remoteUrl.split('/'));
     if (fs.existsSync(dest)) {
       log.warn(
@@ -191,16 +188,17 @@ export default class BaseUploader {
       return dest;
     }
     log(`Downloading build from ${remoteUrl}`);
-    return this._downloadFile(remoteUrl, dest);
+    return this.downloadFile(remoteUrl, dest);
   }
 
   async upload() {
     this.ensureOptionsAreCorrect();
     const data = await this.getData();
     const configData = await this.getConfigData();
-    const path = data.path ? data.path : await this.downloadFile(data.remoteUrl);
+    const path = data.path ? data.path : await this.checkAndDownloadFile(data.remoteUrl);
     const platformData = await this.getPlatformData();
     await this.uploadToStore(configData, platformData, path);
+    fs.unlinkSync(path);
   }
 
   ensureOptionsAreCorrect() {
@@ -218,7 +216,5 @@ export default class BaseUploader {
     this.ensurePlatformOptionsAreCorrect();
   }
 
-  getFastlane() {
-    return require('@expo/traveling-fastlane-darwin')();
-  }
+  getFastlane() {}
 }
